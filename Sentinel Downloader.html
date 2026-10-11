@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sentinel Downloader</title>
+<style>
+:root{--bg:#f6f8fb;--card:#fff;--text:#14202e;--muted:#5b6b7c;--accent:#0b6bcb;--border:#dde4ec;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1621;--card:#16212f;--text:#e6edf5;--muted:#9aabbd;--accent:#4aa3ff;--border:#263548}}
+:root[data-theme="dark"]{--bg:#0e1621;--card:#16212f;--text:#e6edf5;--muted:#9aabbd;--accent:#4aa3ff;--border:#263548}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5}
+.wrap{max-width:1000px;margin:0 auto;padding:24px 16px 48px}
+h1{margin:0;font-size:2rem}
+h1 span{color:var(--accent)}
+.sub{color:var(--muted);margin:6px 0 20px}
+input{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font-size:1rem}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 20px}
+.chip{border:1px solid var(--border);background:var(--card);color:var(--text);padding:6px 12px;border-radius:999px;cursor:pointer;font-size:.9rem}
+.chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.card h3{margin:0;font-size:1.05rem}
+.card p{margin:0;color:var(--muted);font-size:.92rem;flex:1}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:.75rem;padding:2px 8px;border-radius:6px;border:1px solid var(--border);color:var(--muted)}
+.btn{display:inline-block;text-align:center;background:var(--accent);color:#fff;text-decoration:none;padding:9px 12px;border-radius:8px;font-weight:600}
+.empty{color:var(--muted);padding:20px 0}
+footer{margin-top:32px;color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sentinel <span>Downloader</span></h1>
+  <p class="sub">A free directory of every place to download Sentinel satellite images and data. No sign-up needed here — click a link to go to the official source.</p>
+  <input id="q" type="search" placeholder="Search: Sentinel-2, radar, API, Python, free...">
+  <div class="chips" id="chips"></div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" hidden>No results. Try another keyword.</div>
+  <footer>Sentinel data is produced by ESA / Copernicus. This site only links to third-party sources and does not host data. Some sites require a free account. The old Copernicus Open Access Hub (SciHub) was retired in 2023; use Copernicus Data Space instead.</footer>
+</div>
+<script>
+const SITES=[
+{n:"Copernicus Browser",d:"Official ESA viewer and downloader for all Sentinel missions. Search by map, date and cloud cover.",u:"https://browser.dataspace.copernicus.eu",t:["S1","S2","S3","S5P","Official","Free account"]},
+{n:"Copernicus Data Space Ecosystem",d:"The main official portal, APIs (OData, STAC, S3) and documentation for bulk downloads.",u:"https://dataspace.copernicus.eu",t:["S1","S2","S3","S5P","Official","API","Free account"]},
+{n:"USGS EarthExplorer",d:"Search and download Sentinel-2 scenes together with Landsat and other datasets.",u:"https://earthexplorer.usgs.gov",t:["S2","Free account"]},
+{n:"ASF Data Search (Vertex)",d:"Best place for Sentinel-1 radar (SAR) data, with a bulk download tool and Python API.",u:"https://search.asf.alaska.edu",t:["S1","Radar","API","Free account"]},
+{n:"Sentinel Hub EO Browser",d:"Fast online viewer with true color, NDVI and other band combinations, plus image export.",u:"https://apps.sentinel-hub.com/eo-browser/",t:["S1","S2","S3","S5P","Viewer"]},
+{n:"Sentinel Playground",d:"Quick, simple viewer for Sentinel-2 imagery and downloading small areas.",u:"https://apps.sentinel-hub.com/sentinel-playground/",t:["S2","Viewer"]},
+{n:"Google Earth Engine",d:"Process and export Sentinel data in the cloud with JavaScript or Python. Free for non-commercial use.",u:"https://code.earthengine.google.com",t:["S1","S2","S5P","API","Python","Free account"]},
+{n:"Earth Engine: Sentinel-2 Catalog",d:"Dataset page with band info and ready-to-use code for Sentinel-2 surface reflectance.",u:"https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED",t:["S2","API","Python"]},
+{n:"AWS Open Data: Sentinel-2 COGs",d:"Sentinel-2 L2A as cloud-optimized GeoTIFFs in an open bucket. No account needed to read.",u:"https://registry.opendata.aws/sentinel-2-l2a-cogs/",t:["S2","Cloud","No account"]},
+{n:"AWS Open Data: Sentinel-1",d:"Sentinel-1 GRD data hosted on AWS.",u:"https://registry.opendata.aws/sentinel-1/",t:["S1","Radar","Cloud"]},
+{n:"Earth Search STAC API",d:"Free STAC API to search Sentinel-2 on AWS. Works with Python (pystac-client) and QGIS.",u:"https://earth-search.aws.element84.com/v1",t:["S2","API","Python","No account"]},
+{n:"Microsoft Planetary Computer",d:"Sentinel-2 L2A catalog with a STAC API and Python notebooks.",u:"https://planetarycomputer.microsoft.com/dataset/sentinel-2-l2a",t:["S2","API","Python","Cloud"]},
+{n:"Google Cloud Public Dataset: Sentinel-2",d:"Sentinel-2 archive in a public Google Cloud Storage bucket.",u:"https://cloud.google.com/storage/docs/public-datasets/sentinel-2",t:["S2","Cloud"]},
+{n:"openEO (Copernicus)",d:"Process Earth observation data with a unified API from Python, R or a web editor.",u:"https://openeo.dataspace.copernicus.eu",t:["S1","S2","S3","API","Python","Free account"]},
+{n:"Sentinel-5P Pathfinder Data Portal",d:"Reprocessed Sentinel-5P air quality and atmosphere products.",u:"https://data-portal.s5p-pal.com",t:["S5P","Atmosphere"]},
+{n:"ESA Sentinel Online",d:"Official mission information, user guides, product specs and tutorials.",u:"https://sentinels.copernicus.eu",t:["S1","S2","S3","S5P","Official","Docs"]},
+{n:"SNAP (ESA toolbox)",d:"Free desktop software to open, process and analyze Sentinel images.",u:"https://step.esa.int/main/download/snap-download/",t:["S1","S2","S3","Software"]}
+];
+const TAGS=["All","S1","S2","S3","S5P","API","Python","Official","Viewer","Cloud","No account","Software"];
+let tag="All";
+const $=id=>document.getElementById(id);
+function chips(){$("chips").innerHTML="";TAGS.forEach(t=>{const b=document.createElement("button");b.className="chip"+(t===tag?" on":"");b.textContent=t;b.onclick=()=>{tag=t;chips();render()};$("chips").appendChild(b)})}
+function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function render(){
+  const q=$("q").value.toLowerCase().trim();
+  const r=SITES.filter(s=>(tag==="All"||s.t.includes(tag))&&(!q||(s.n+" "+s.d+" "+s.t.join(" ")).toLowerCase().includes(q)));
+  $("grid").innerHTML=r.map(s=>`<div class="card"><h3>${esc(s.n)}</h3><p>${esc(s.d)}</p><div class="tags">${s.t.map(x=>`<span class="tag">${esc(x)}</span>`).join("")}</div><a class="btn" href="${s.u}" target="_blank" rel="noopener noreferrer">Open site</a></div>`).join("");
+  $("empty").hidden=r.length>0;
+}
+$("q").addEventListener("input",render);
+chips();render();
+</script>
+</body>
+</html>
